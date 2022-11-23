@@ -26,17 +26,37 @@ pub fn main() !void {
         var bw = std.io.bufferedWriter(stdout_file);
         const stdout = bw.writer();
 
-        var x: usize = 0;
-        while (x < EI_NIDENT) : (x += 1) {
-            try stdout.print("{:03}: {c}\n", .{ header.e_ident[x], header.e_ident[x] });
+        {
+            var i: usize = 0;
+            while (i < 4) : (i += 1) {
+                try stdout.print("{:03}: {c}\n", .{ header.e_ident.elf_mag[i], header.e_ident.elf_mag[i] });
+            }
+        }
+
+        try stdout.print("{:03}: {s}\n", .{ @enumToInt(header.e_ident.file_class), @tagName(header.e_ident.file_class) });
+
+        {
+            var i: usize = 0;
+            while (i < EI_NIDENT - 5) : (i += 1) {
+                try stdout.print("{:03}: {c}\n", .{ header.e_ident.other[i], header.e_ident.other[i] });
+            }
         }
 
         try bw.flush(); // don't forget to flush!
     }
 }
 
+// Data type representation with expected C alignment
+const Elf32_Addr = u32;
+const Elf32_Half = u16;
+const Elf32_Off = u32;
+const Elf32_Sword = i32;
+const Elf32_Word = u32;
+const Elf32_Byte = u8;
+
+/// Elf Header
 const Elf32_Ehdr = extern struct {
-    e_ident: [EI_NIDENT]u8,
+    e_ident: EIdent,
     e_type: Elf32_Half,
     e_machine: Elf32_Half,
     e_version: Elf32_Word,
@@ -52,12 +72,24 @@ const Elf32_Ehdr = extern struct {
     e_shstrndx: Elf32_Half,
 };
 
+// e_ident ====================================
+// [0][1][2][3][4][5][6][7][8][9][A][B][C][D][E][F]
+
 const EI_NIDENT: usize = 16;
 
-// Data representation with expected C alignment
-const Elf32_Addr = u32;
-const Elf32_Half = u16;
-const Elf32_Off = u32;
-const Elf32_Sword = i32;
-const Elf32_Word = u32;
-const Elf32_Byte = u8;
+const EIdent = extern struct {
+    // [0-3]; magic value
+
+    elf_mag: [4]u8,
+
+    /// [4]; EI_Class
+    file_class: FileClass,
+
+    other: [EI_NIDENT - 5]u8,
+};
+
+const FileClass = enum(u8) {
+    elf_class_none, // 0
+    elf_class_32, // 1
+    elf_class_64, // 2
+};
